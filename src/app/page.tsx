@@ -1,6 +1,7 @@
 "use client";
 
 import GoogleMap from "@/components/GoogleMap";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "@/components/ui/drawer";
 import Sidebar from "@/components/Sidebar";
 import { Toggle, GooeyFilter } from "@/components/LiquidToggle";
 import { AnimatePresence } from "framer-motion";
@@ -34,6 +35,23 @@ export default function Home() {
 	const [selectedPoint] = useState<{ lat: number; lng: number; zoom?: number } | undefined>();
 	// const [searchQuery] = useState(""); // Currently unused
 	const [clickedPoint, setClickedPoint] = useState<{ lat: number; lng: number; title?: string; group?: string } | null>(null);
+	const [selectedRoute, setSelectedRoute] = useState<{
+		id: number;
+		festivalName: string;
+		color: string;
+		festival_name: string;
+		procession_number: string;
+		start_address: string;
+		end_address: string;
+		total_distance: number;
+		description: string;
+		police_station?: string;
+		village?: string;
+		start_time?: string | null;
+		end_time?: string | null;
+		duration_minutes?: number | null;
+		expected_crowd?: number | null;
+	} | null>(null);
 	const [kmlLayerVisible, setKmlLayerVisible] = useState(false); // Start disabled by default
 	const [geoJsonLayerVisible, setGeoJsonLayerVisible] = useState(false);
 	const [cctvLayerVisible, setCctvLayerVisible] = useState(false); // New CCTV layer toggle
@@ -1059,7 +1077,10 @@ export default function Home() {
 									const pointCount = categoryData[category.id]?.length || 0;
 
 									return (
-										<div key={category.id} className="space-y-1">
+										<div
+											key={category.id}
+											className="space-y-1"
+										>
 											{/* Category Toggle */}
 											<div className="flex items-center justify-between cursor-pointer group">
 												<div
@@ -1081,7 +1102,12 @@ export default function Home() {
 														stroke="currentColor"
 														viewBox="0 0 24 24"
 													>
-														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+														<path
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															strokeWidth={2}
+															d="M9 5l7 7-7 7"
+														/>
 													</svg>
 													<div
 														className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
@@ -1090,9 +1116,7 @@ export default function Home() {
 													<span className="text-sm font-medium text-gray-200 truncate">{category.name}</span>
 													<span
 														className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
-															categoryToggles[category.id]
-																? `border`
-																: "bg-gray-700/50 text-gray-500 border border-gray-600/30"
+															categoryToggles[category.id] ? `border` : "bg-gray-700/50 text-gray-500 border border-gray-600/30"
 														}`}
 														style={
 															categoryToggles[category.id]
@@ -1127,22 +1151,19 @@ export default function Home() {
 											{isExpanded && category.subcategories.length > 0 && (
 												<div className="ml-7 space-y-1">
 													{category.subcategories.map((subcategory) => {
-														const subcatPoints = (categoryData[category.id] || []).filter(
-															(p) => p.subcategory_id === subcategory.id,
-														).length;
+														const subcatPoints = (categoryData[category.id] || []).filter((p) => p.subcategory_id === subcategory.id).length;
 
 														return (
-															<div key={subcategory.id} className="flex items-center justify-between cursor-pointer group">
+															<div
+																key={subcategory.id}
+																className="flex items-center justify-between cursor-pointer group"
+															>
 																<div className="flex-1 min-w-0">
 																	<div className="flex items-center space-x-2">
-																		<span className="text-xs font-medium text-gray-300 truncate max-w-[120px]">
-																			{subcategory.name}
-																		</span>
+																		<span className="text-xs font-medium text-gray-300 truncate max-w-[120px]">{subcategory.name}</span>
 																		<span
 																			className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
-																				subcategoryToggles[category.id]?.[subcategory.id]
-																					? `border`
-																					: "bg-gray-700/50 text-gray-500 border border-gray-600/30"
+																				subcategoryToggles[category.id]?.[subcategory.id] ? `border` : "bg-gray-700/50 text-gray-500 border border-gray-600/30"
 																			}`}
 																			style={
 																				subcategoryToggles[category.id]?.[subcategory.id]
@@ -1778,6 +1799,7 @@ export default function Home() {
 					geoJsonLayer={geoJsonLayerConfig}
 					selectedPoint={selectedPoint}
 					onPointClick={handlePointClick}
+					onRouteClick={(route) => setSelectedRoute(route)}
 					searchablePoints={searchablePoints}
 					onKMLToggle={handleKMLToggle}
 					onGeoJSONToggle={handleGeoJSONToggle}
@@ -1800,6 +1822,85 @@ export default function Home() {
 						)}
 					</AnimatePresence>
 				</div>
+
+				{/* Route details drawer */}
+				<Drawer
+					open={!!selectedRoute}
+					onOpenChange={(open) => !open && setSelectedRoute(null)}
+					direction="right"
+				>
+					<DrawerContent className="w-full sm:max-w-sm bg-black">
+						<DrawerHeader className="border-b border-white/10 bg-black/40">
+							<DrawerTitle>{selectedRoute?.festivalName || "Procession Route"}</DrawerTitle>
+							<DrawerDescription>Tap map to close or use the button below.</DrawerDescription>
+						</DrawerHeader>
+						<div className="p-4 space-y-4 text-sm text-gray-200">
+							<div className="flex items-center justify-between">
+								<span className="text-muted-foreground">Procession #:</span>
+								<span className="font-medium">{selectedRoute?.procession_number}</span>
+							</div>
+							<div className="flex items-center justify-between">
+								<span className="text-muted-foreground">Festival:</span>
+								<span className="font-medium">{selectedRoute?.festival_name}</span>
+							</div>
+							<div className="flex items-center justify-between">
+								<span className="text-muted-foreground">Police Station:</span>
+								<span className="font-medium">{selectedRoute?.police_station || "—"}</span>
+							</div>
+							<div className="flex items-center justify-between">
+								<span className="text-muted-foreground">Village:</span>
+								<span className="font-medium">{selectedRoute?.village || "—"}</span>
+							</div>
+							<div className="flex items-center justify-between">
+								<span className="text-muted-foreground">Distance:</span>
+								<span className="font-medium">{selectedRoute?.total_distance} km</span>
+							</div>
+							<div className="flex items-center justify-between">
+								<span className="text-muted-foreground">Timing:</span>
+								<span className="font-medium">
+									{selectedRoute?.start_time || "?"} → {selectedRoute?.end_time || "?"} ({selectedRoute?.duration_minutes ?? "?"} min)
+								</span>
+							</div>
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+									<div className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Start Point</div>
+									<div className="mt-1 text-sm font-medium text-emerald-200">{selectedRoute?.start_address}</div>
+								</div>
+								<div className="rounded-md border border-red-500/30 bg-red-500/10 p-3">
+									<div className="text-xs font-semibold uppercase tracking-wide text-red-400">End Point</div>
+									<div className="mt-1 text-sm font-medium text-red-200">{selectedRoute?.end_address}</div>
+								</div>
+							</div>
+							{selectedRoute?.description && <p className="text-muted-foreground">{selectedRoute.description}</p>}
+
+							{/* Static AI Gap Analysis substitute */}
+							<div className="mt-4 rounded-md border border-white/10 bg-black/40">
+								<div className="px-4 py-2 text-sm font-semibold">🤖 AI Gap Analysis</div>
+								<div className="px-4 pb-3 space-y-2 text-xs">
+									<div className="flex items-center justify-between">
+										<span>📹 CCTV Gaps</span>
+										<span className="text-amber-400">22</span>
+									</div>
+									<div className="flex items-center justify-between">
+										<span>🚔 Police Gaps</span>
+										<span className="text-blue-400">22</span>
+									</div>
+									<div className="flex items-center justify-between">
+										<span>🏧 ATM Gaps</span>
+										<span className="text-green-300">22</span>
+									</div>
+									<div className="flex items-center justify-between">
+										<span>🏥 Medical Gaps</span>
+										<span className="text-emerald-300">22</span>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div className="p-4">
+							<DrawerClose className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm bg-white/10 text-white">Close</DrawerClose>
+						</div>
+					</DrawerContent>
+				</Drawer>
 			</div>
 
 			{/* Add the GooeyFilter for the liquid toggle effects */}

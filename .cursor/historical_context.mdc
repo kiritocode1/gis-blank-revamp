@@ -4,6 +4,50 @@ Keep appending new updates at the bottom. Do not remove older entries.
 
 ---
 
+Date: 2025-10-28
+Author: AI Pair Programmer
+Change Summary:
+
+-   Added procession route click -> Drawer flow with detailed route info.
+-   Exposed `onRouteClick` in `GoogleMap.tsx` and wired to polyline and endpoint markers.
+-   Drawer shows festival, procession #, distance, start/end, police station, village, timing, description, and a static Gap Analysis placeholder.
+
+Files Updated:
+
+-   src/components/GoogleMap.tsx
+    -   Added `onRouteClick` prop to interface: around top props block
+    -   Emit route details from start/end markers and polylines: within polylines effect
+-   src/app/page.tsx
+    -   Import Drawer components: near top
+    -   Added `selectedRoute` state with extended fields: near state declarations
+    -   Passed `onRouteClick` to `GoogleMap`: around map JSX
+    -   Added right-side Drawer with route details and static analysis: below StreetView popup
+
+Notes:
+
+-   Kept strict typing (no `any`/`undefined`).
+-   Did not touch `legacy` or `node_modules`.
+
+---
+
+Date: 2025-10-28
+Author: AI Pair Programmer
+Change Summary:
+
+-   Styled route details drawer to match dark theme.
+-   Added green Start and red End cards within drawer.
+
+Files Updated:
+
+-   src/app/page.tsx
+    -   Drawer header background/border: around route drawer block
+    -   Start/End cards with emerald/red styles: within drawer content
+
+Notes:
+
+-   Visual alignment with existing dark UI; no logic changes.
+
+
 Date: 2025-10-10
 Author: AI Pair Programmer
 Change Summary:

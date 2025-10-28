@@ -65,6 +65,24 @@ interface GoogleMapProps {
 	}>;
 	selectedPoint?: { lat: number; lng: number; zoom?: number };
 	onPointClick?: (point: { lat: number; lng: number; title?: string; group?: string }) => void;
+	/** Fired when a procession route (polyline or its endpoints) is clicked */
+	onRouteClick?: (route: {
+		id: number;
+		festivalName: string;
+		color: string;
+		festival_name: string;
+		procession_number: string;
+		start_address: string;
+		end_address: string;
+		total_distance: number;
+		description: string;
+		police_station?: string;
+		village?: string;
+		start_time?: string | null;
+		end_time?: string | null;
+		duration_minutes?: number | null;
+		expected_crowd?: number | null;
+	}) => void;
 	searchablePoints?: Array<{
 		id: string;
 		position: { lat: number; lng: number };
@@ -104,6 +122,7 @@ export default function GoogleMap({
 	polylines = [],
 	selectedPoint,
 	onPointClick,
+	onRouteClick,
 	onKMLToggle,
 	onGeoJSONToggle,
 	onMarkersToggle,
@@ -472,6 +491,28 @@ export default function GoogleMap({
 							zIndex: 1001,
 						});
 
+						if (onRouteClick) {
+							startMarker.addListener("click", () => {
+								onRouteClick({
+									id: route.id,
+									festivalName: festivalGroup.festivalName,
+									color: festivalGroup.color,
+									festival_name: route.festival_name,
+									procession_number: route.procession_number,
+									start_address: route.start_address,
+									end_address: route.end_address,
+									total_distance: route.total_distance,
+									description: route.description,
+									police_station: (route as unknown as { police_station?: string }).police_station,
+									village: (route as unknown as { village?: string }).village,
+									start_time: (route as unknown as { start_time?: string | null }).start_time ?? null,
+									end_time: (route as unknown as { end_time?: string | null }).end_time ?? null,
+									duration_minutes: (route as unknown as { duration_minutes?: number | null }).duration_minutes ?? null,
+									expected_crowd: (route as unknown as { expected_crowd?: number | null }).expected_crowd ?? null,
+								});
+							});
+						}
+
 						// Add end marker (red circle without border)
 						const endMarker = new window.google.maps.Marker({
 							position: new window.google.maps.LatLng(route.endPoint.lat, route.endPoint.lng),
@@ -488,7 +529,53 @@ export default function GoogleMap({
 							zIndex: 1001,
 						});
 
-						// No click handler for procession routes to avoid pin overlay
+						if (onRouteClick) {
+							endMarker.addListener("click", () => {
+								onRouteClick({
+									id: route.id,
+									festivalName: festivalGroup.festivalName,
+									color: festivalGroup.color,
+									festival_name: route.festival_name,
+									procession_number: route.procession_number,
+									start_address: route.start_address,
+									end_address: route.end_address,
+									total_distance: route.total_distance,
+									description: route.description,
+									police_station: (route as unknown as { police_station?: string }).police_station,
+									village: (route as unknown as { village?: string }).village,
+									start_time: (route as unknown as { start_time?: string | null }).start_time ?? null,
+									end_time: (route as unknown as { end_time?: string | null }).end_time ?? null,
+									duration_minutes: (route as unknown as { duration_minutes?: number | null }).duration_minutes ?? null,
+									expected_crowd: (route as unknown as { expected_crowd?: number | null }).expected_crowd ?? null,
+								});
+							});
+						}
+
+						// Route click handlers
+						if (onRouteClick) {
+							const emit = () => {
+								onRouteClick({
+									id: route.id,
+									festivalName: festivalGroup.festivalName,
+									color: festivalGroup.color,
+									festival_name: route.festival_name,
+									procession_number: route.procession_number,
+									start_address: route.start_address,
+									end_address: route.end_address,
+									total_distance: route.total_distance,
+									description: route.description,
+									police_station: (route as unknown as { police_station?: string }).police_station,
+									village: (route as unknown as { village?: string }).village,
+									start_time: (route as unknown as { start_time?: string | null }).start_time ?? null,
+									end_time: (route as unknown as { end_time?: string | null }).end_time ?? null,
+									duration_minutes: (route as unknown as { duration_minutes?: number | null }).duration_minutes ?? null,
+									expected_crowd: (route as unknown as { expected_crowd?: number | null }).expected_crowd ?? null,
+								});
+							};
+							polyline.addListener("click", emit);
+							glowPolyline.addListener("click", emit);
+							outerGlowPolyline.addListener("click", emit);
+						}
 
 						// Store references for cleanup
 						polylinesRef.current.push(polyline, glowPolyline, outerGlowPolyline, startMarker, endMarker);
