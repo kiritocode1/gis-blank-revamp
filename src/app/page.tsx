@@ -1971,7 +1971,7 @@ export default function Home() {
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-muted-foreground">Distance:</span>
-								<span className="font-medium">{selectedRoute?.total_distance} km</span>
+								<span className="font-medium">{(selectedRoute?.total_distance ?? 0).toFixed(2)} km</span>
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-muted-foreground">Timing:</span>
