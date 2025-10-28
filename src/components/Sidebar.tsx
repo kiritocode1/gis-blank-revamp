@@ -74,6 +74,23 @@ const SettingsIcon = ({ className }: { className?: string }) => (
 	</svg>
 );
 
+// New icon for Categories section
+const CategoriesIcon = ({ className }: { className?: string }) => (
+	<svg
+		className={className}
+		fill="none"
+		stroke="currentColor"
+		viewBox="0 0 24 24"
+	>
+		<path
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			strokeWidth={2}
+			d="M4 6h16M4 12h16M4 18h16" // three lines representing grouped categories
+		/>
+	</svg>
+);
+
 const ChevronLeftIcon = ({ className }: { className?: string }) => (
 	<svg
 		className={className}
@@ -138,10 +155,10 @@ export default function Sidebar({ children, processionRoutes, settingsContent }:
 			description: "Manage festival routes",
 		},
 		{
-			id: "settings",
-			icon: SettingsIcon,
-			title: "Settings",
-			description: "Application settings",
+			id: "categories",
+			icon: CategoriesIcon,
+			title: "Categories",
+			description: "Browse and toggle categories",
 		},
 	];
 
@@ -256,7 +273,7 @@ export default function Sidebar({ children, processionRoutes, settingsContent }:
 
 									{activeSection === "routes" && <div className="space-y-4">{processionRoutes}</div>}
 
-									{activeSection === "settings" && (
+									{activeSection === "categories" && (
 										<div className="space-y-4">
 											{settingsContent || (
 												<div className="space-y-3">
