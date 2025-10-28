@@ -4,6 +4,7 @@ import GoogleMap from "@/components/GoogleMap";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "@/components/ui/drawer";
 import Sidebar from "@/components/Sidebar";
 import { Toggle, GooeyFilter } from "@/components/LiquidToggle";
+import { parseKMLFile, type KMLFeature, type KMLMarker } from "@/utils/kmlParser";
 import { AnimatePresence } from "framer-motion";
 import StreetViewPopup from "@/components/StreetViewPopup";
 import { useState, useEffect, useRef } from "react";
@@ -28,6 +29,8 @@ import {
 	fetchCategoryPoints,
 	type Category,
 	type Subcategory,
+	fetchPoliceStations,
+	type PoliceStation,
 } from "@/services/externalApi";
 
 export default function Home() {
@@ -116,6 +119,11 @@ export default function Home() {
 		zoom: number;
 	} | null>(null);
 
+	// Cached KML features (villages/boundaries) and police stations for enrichment
+	const [kmlFeatures, setKmlFeatures] = useState<KMLFeature[] | null>(null);
+	const [kmlMarkers, setKmlMarkers] = useState<KMLMarker[] | null>(null);
+	const [policeStations, setPoliceStations] = useState<PoliceStation[] | null>(null);
+
 	// State for absolute URLs (client-side only)
 	const [kmlAbsoluteUrl, setKmlAbsoluteUrl] = useState("/kml/nashik_gramin.kml");
 
@@ -125,6 +133,64 @@ export default function Home() {
 			setKmlAbsoluteUrl(`${window.location.origin}/kml/nashik_gramin.kml`);
 		}
 	}, []);
+
+	// Helpers
+	const toRad = (deg: number) => (deg * Math.PI) / 180;
+	const haversineMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }): number => {
+		const R = 6371000; // meters
+		const dLat = toRad(b.lat - a.lat);
+		const dLng = toRad(b.lng - a.lng);
+		const lat1 = toRad(a.lat);
+		const lat2 = toRad(b.lat);
+		const sinDLat = Math.sin(dLat / 2);
+		const sinDLng = Math.sin(dLng / 2);
+		const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+		return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+	};
+
+	const pointInPolygon = (point: { lat: number; lng: number }, polygon: { lat: number; lng: number }[]): boolean => {
+		let inside = false;
+		for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+			const xi = polygon[i].lng,
+				yi = polygon[i].lat;
+			const xj = polygon[j].lng,
+				yj = polygon[j].lat;
+			const intersect = yi > point.lat !== yj > point.lat && point.lng < ((xj - xi) * (point.lat - yi)) / (yj - yi) + xi;
+			if (intersect) inside = !inside;
+		}
+		return inside;
+	};
+
+	const findVillageName = (start: { lat: number; lng: number }, end: { lat: number; lng: number }, features: KMLFeature[]): string | null => {
+		for (const candidate of [start, end]) {
+			const match = features.find((f) => f.type === "polygon" && pointInPolygon(candidate, f.coordinates));
+			if (match) return match.name;
+		}
+		return null;
+	};
+
+	// Accepts API police stations or KML-derived markers mapped to station-like objects
+	type StationLike = { name: string; latitude: number | string; longitude: number | string };
+	const findNearestPoliceStation = (path: Array<{ lat: number; lng: number }>, stations: StationLike[]): { name: string; distanceMeters: number } | null => {
+		if (stations.length === 0 || path.length === 0) return null;
+		let best: { name: string; distanceMeters: number } | null = null;
+		// Sample along path to limit cost
+		const step = Math.max(1, Math.floor(path.length / 100));
+		for (let i = 0; i < path.length; i += step) {
+			const p = path[i];
+			for (const st of stations) {
+				const stationPos = {
+					lat: typeof st.latitude === "string" ? parseFloat(st.latitude) : (st.latitude as number),
+					lng: typeof st.longitude === "string" ? parseFloat(st.longitude) : (st.longitude as number),
+				};
+				const d = haversineMeters(p, stationPos);
+				if (!best || d < best.distanceMeters) {
+					best = { name: st.name, distanceMeters: d };
+				}
+			}
+		}
+		return best;
+	};
 
 	// Load categories on mount
 	useEffect(() => {
@@ -1799,7 +1865,60 @@ export default function Home() {
 					geoJsonLayer={geoJsonLayerConfig}
 					selectedPoint={selectedPoint}
 					onPointClick={handlePointClick}
-					onRouteClick={(route) => setSelectedRoute(route)}
+					onRouteClick={async (route) => {
+						// Lazy load KML features and police stations if absent
+						if (!kmlFeatures) {
+							try {
+								const parsed = await parseKMLFile(kmlAbsoluteUrl);
+								if (parsed.success) {
+									setKmlFeatures(parsed.features);
+									setKmlMarkers(parsed.markers);
+								}
+							} catch {
+								// ignore
+							}
+						}
+						if (!policeStations) {
+							try {
+								const stations = await fetchPoliceStations();
+								setPoliceStations(stations);
+							} catch {
+								// ignore
+							}
+						}
+
+						// Fallback: build station-like list from KML markers if API returned none
+						let stationPool: StationLike[] = Array.isArray(policeStations) && policeStations.length > 0 ? policeStations : [];
+						if (stationPool.length === 0) {
+							if (!kmlMarkers && !kmlFeatures) {
+								try {
+									const parsed = await parseKMLFile(kmlAbsoluteUrl);
+									if (parsed.success) {
+										setKmlFeatures(parsed.features);
+										setKmlMarkers(parsed.markers);
+									}
+								} catch {
+									// ignore
+								}
+							}
+							const markers = kmlMarkers || [];
+							stationPool = markers.map((m) => ({ name: m.title, latitude: m.position.lat, longitude: m.position.lng }));
+						}
+
+						let villageName: string | null = null;
+						if (kmlFeatures) {
+							villageName = findVillageName(route.startPoint, route.endPoint, kmlFeatures);
+						}
+
+						let nearestStation: { name: string; distanceMeters: number } | null = null;
+						nearestStation = findNearestPoliceStation(route.path, stationPool);
+
+						setSelectedRoute({
+							...route,
+							police_station: nearestStation?.name ?? route.police_station,
+							village: villageName ?? route.village,
+						});
+					}}
 					searchablePoints={searchablePoints}
 					onKMLToggle={handleKMLToggle}
 					onGeoJSONToggle={handleGeoJSONToggle}
@@ -1830,9 +1949,8 @@ export default function Home() {
 					direction="right"
 				>
 					<DrawerContent className="w-full sm:max-w-sm bg-black">
-						<DrawerHeader className="border-b border-white/10 bg-black/40">
+						<DrawerHeader className=" bg-black/40">
 							<DrawerTitle>{selectedRoute?.festivalName || "Procession Route"}</DrawerTitle>
-							<DrawerDescription>Tap map to close or use the button below.</DrawerDescription>
 						</DrawerHeader>
 						<div className="p-4 space-y-4 text-sm text-gray-200">
 							<div className="flex items-center justify-between">

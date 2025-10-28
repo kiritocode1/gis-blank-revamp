@@ -72,6 +72,9 @@ interface GoogleMapProps {
 		color: string;
 		festival_name: string;
 		procession_number: string;
+		path: Array<{ lat: number; lng: number }>;
+		startPoint: { lat: number; lng: number };
+		endPoint: { lat: number; lng: number };
 		start_address: string;
 		end_address: string;
 		total_distance: number;
@@ -499,6 +502,9 @@ export default function GoogleMap({
 									color: festivalGroup.color,
 									festival_name: route.festival_name,
 									procession_number: route.procession_number,
+									path: route.path,
+									startPoint: route.startPoint,
+									endPoint: route.endPoint,
 									start_address: route.start_address,
 									end_address: route.end_address,
 									total_distance: route.total_distance,
@@ -537,6 +543,9 @@ export default function GoogleMap({
 									color: festivalGroup.color,
 									festival_name: route.festival_name,
 									procession_number: route.procession_number,
+									path: route.path,
+									startPoint: route.startPoint,
+									endPoint: route.endPoint,
 									start_address: route.start_address,
 									end_address: route.end_address,
 									total_distance: route.total_distance,
@@ -560,6 +569,9 @@ export default function GoogleMap({
 									color: festivalGroup.color,
 									festival_name: route.festival_name,
 									procession_number: route.procession_number,
+									path: route.path,
+									startPoint: route.startPoint,
+									endPoint: route.endPoint,
 									start_address: route.start_address,
 									end_address: route.end_address,
 									total_distance: route.total_distance,

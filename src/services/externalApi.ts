@@ -347,16 +347,20 @@ export async function fetchPoliceStations(): Promise<PoliceStation[]> {
 			throw new Error(`HTTP error! status: ${response.status}`);
 		}
 
-		const data: PoliceStationResponse = await response.json();
+		const raw: unknown = await response.json();
+		// Accept a few possible shapes defensively
+		type Possible = PoliceStationResponse & { items?: PoliceStation[]; stations?: PoliceStation[] };
+		const obj = raw as Possible;
+		const list: PoliceStation[] = Array.isArray(obj.data) ? obj.data : Array.isArray(obj.items) ? obj.items : Array.isArray(obj.stations) ? obj.stations : [];
 
-		if (!data.success) {
-			throw new Error("API returned success: false");
+		if (obj.success === false) {
+			console.warn("⚠️ Police stations API returned success=false; proceeding with empty list");
 		}
 
-		console.log(`✅ Fetched ${data.data.length} police stations`);
+		console.log(`✅ Fetched ${list.length} police stations (raw)`);
 
 		// Transform coordinates to numbers and validate data
-		const validStations = data.data
+		const validStations = list
 			.filter((station) => {
 				const lat = typeof station.latitude === "string" ? parseFloat(station.latitude) : station.latitude;
 				const lng = typeof station.longitude === "string" ? parseFloat(station.longitude) : station.longitude;
@@ -369,7 +373,7 @@ export async function fetchPoliceStations(): Promise<PoliceStation[]> {
 				longitude: typeof station.longitude === "string" ? parseFloat(station.longitude) : station.longitude,
 			}));
 
-		console.log(`📍 Valid police stations: ${validStations.length}/${data.data.length}`);
+		console.log(`📍 Valid police stations: ${validStations.length}/${list.length}`);
 
 		return validStations;
 	} catch (error) {
@@ -699,14 +703,10 @@ export async function fetchCategoryPoints(categoryId: number, subcategoryId?: nu
 		console.log(`✅ Fetched ${data.data_points.length} data points for category ${categoryId}${subcategoryId ? `, subcategory ${subcategoryId}` : ""}`);
 
 		// Filter data points by category_id and subcategory_id to ensure accuracy
-		let filteredPoints = data.data_points.filter(
-			(point: MapDataPoint) => point.category_id === categoryId || point.category_id === parseInt(categoryId.toString()),
-		);
+		let filteredPoints = data.data_points.filter((point: MapDataPoint) => point.category_id === categoryId || point.category_id === parseInt(categoryId.toString()));
 
 		if (subcategoryId) {
-			filteredPoints = filteredPoints.filter(
-				(point: MapDataPoint) => point.subcategory_id === subcategoryId || point.subcategory_id === parseInt(subcategoryId.toString()),
-			);
+			filteredPoints = filteredPoints.filter((point: MapDataPoint) => point.subcategory_id === subcategoryId || point.subcategory_id === parseInt(subcategoryId.toString()));
 		}
 
 		return filteredPoints;
